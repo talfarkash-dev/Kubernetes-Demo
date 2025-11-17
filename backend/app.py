@@ -26,7 +26,7 @@ def cpu_load():
 
     # Perform CPU-intensive calculation
     result = 0
-    for i in range(10000000):
+    for i in range(100000000):
         result += i * i
 
     end_time = time.time()
@@ -42,6 +42,9 @@ def cpu_load():
 @app.route('/info')
 def info():
     """Get pod information"""
+    result = 0
+    for i in range(10000):
+        result += i * i
     return jsonify({
         'hostname': socket.gethostname(),
         'version': os.getenv('APP_VERSION', '1.0'),
