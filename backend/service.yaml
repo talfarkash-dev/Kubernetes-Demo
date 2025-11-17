@@ -1,8 +1,8 @@
 # ==============================================================================
 # Backend Service
 # ==============================================================================
-# Exposes Flask backend pods externally via NodePort
-# Frontend browser can access this service
+# Exposes Flask backend pods internally
+# Port forwarding provides external access
 # ==============================================================================
 
 apiVersion: v1
@@ -10,11 +10,10 @@ kind: Service
 metadata:
   name: flask-app-service
 spec:
-  type: NodePort  # External service (accessed by browser)
+  type: ClusterIP  # Internal service (accessed via port-forward)
   selector:
     app: flask-app  # Matches pods with this label
   ports:
   - protocol: TCP
     port: 5000        # Service port (matches Flask app)
     targetPort: 5000  # Container port (Flask)
-    nodePort: 30500   # External access port
