@@ -11,6 +11,7 @@ metadata:
   name: flask-app-service
 spec:
   type: ClusterIP  # Internal service (accessed via port-forward)
+  sessionAffinity: None  # Ensures round-robin load balancing
   selector:
     app: flask-app  # Matches pods with this label
   ports:
