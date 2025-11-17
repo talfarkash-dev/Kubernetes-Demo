@@ -1,12 +1,8 @@
-# ==============================================================================
-# Kubernetes Demo - Watch Script
-# ==============================================================================
-# Monitors pods and HPA in real-time
-# ==============================================================================
+﻿# Kubernetes Demo - Watch Script
 
 Write-Host ""
-Write-Host "👀 Kubernetes Demo Monitor" -ForegroundColor Cyan
-Write-Host "===========================" -ForegroundColor Cyan
+Write-Host "Kubernetes Demo Monitor" -ForegroundColor Cyan
+Write-Host "=======================" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "Choose what to watch:" -ForegroundColor Yellow
 Write-Host "1. Pods (see scaling in action)" -ForegroundColor White
@@ -33,13 +29,10 @@ switch ($choice) {
         Write-Host ""
         Write-Host "Opening two watch windows..." -ForegroundColor Green
 
-        # Window 1 - Pods
-        Start-Process powershell -ArgumentList "-NoExit", "-Command", "Write-Host '👀 Watching Pods' -ForegroundColor Cyan; kubectl get pods -w"
+        Start-Process powershell -ArgumentList "-NoExit", "-Command", "Write-Host 'Watching Pods' -ForegroundColor Cyan; kubectl get pods -w"
+        Start-Process powershell -ArgumentList "-NoExit", "-Command", "Write-Host 'Watching HPA' -ForegroundColor Cyan; kubectl get hpa -w"
 
-        # Window 2 - HPA
-        Start-Process powershell -ArgumentList "-NoExit", "-Command", "Write-Host '📊 Watching HPA' -ForegroundColor Cyan; kubectl get hpa -w"
-
-        Write-Host "✅ Watch windows opened!" -ForegroundColor Green
+        Write-Host "Watch windows opened!" -ForegroundColor Green
     }
     default {
         Write-Host "Invalid choice" -ForegroundColor Red

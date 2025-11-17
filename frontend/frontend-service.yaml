@@ -1,4 +1,3 @@
-
 # ==============================================================================
 # Frontend Service
 # ==============================================================================
@@ -17,4 +16,4 @@ spec:
   - protocol: TCP
     port: 80        # Service port
     targetPort: 80  # Container port (nginx)
-    nodePort: 30081 # External access port
+    nodePort: 30800 # External access port

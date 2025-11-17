@@ -47,17 +47,17 @@ spec:
       name: cpu  # Monitor CPU usage
       target:
         type: Utilization  # Use percentage of requested resources
-        averageUtilization: 70  # Target: 70% CPU across all pods
-        # If average CPU > 70% → Scale up
-        # If average CPU < 70% → Scale down (slowly)
+        averageUtilization: 25  # Target: 25% CPU across all pods
+        # If average CPU > 25% → Scale up
+        # If average CPU < 25% → Scale down (slowly)
 
   # Memory Metric
-  - type: Resource
-    resource:
-      name: memory  # Monitor memory usage
-      target:
-        type: Utilization
-        averageUtilization: 80  # Target: 80% memory across all pods
+  # - type: Resource
+  #   resource:
+  #     name: memory  # Monitor memory usage
+  #     target:
+  #       type: Utilization
+  #       averageUtilization: 80  # Target: 80% memory across all pods
         # If average memory > 80% → Scale up
 
   # ===========================================================================
@@ -67,12 +67,12 @@ spec:
   behavior:
     # Scale Down Behavior
     scaleDown:
-      stabilizationWindowSeconds: 60  # Wait 60 seconds before scaling down
+      stabilizationWindowSeconds: 15  # Wait 15 seconds before scaling down
       # Prevents flapping (up/down/up/down) during fluctuating load
       policies:
       - type: Percent  # Scale down by percentage
         value: 50  # Remove max 50% of current pods at once
-        periodSeconds: 60  # Within 60 second window
+        periodSeconds: 15  # Within 15 second window
         # Example: If you have 10 pods, remove max 5 pods per minute
 
     # Scale Up Behavior

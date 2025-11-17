@@ -25,17 +25,19 @@ spec:
           value: "1.0"
         resources: #Maximum the pod can use
           limits:
-            memory: "128Mi"
+            memory: "256Mi"
             cpu: "250m"
           requests: #What the pod needs to start
-            memory: "64Mi"
+            memory: "128Mi"
             cpu: "100m"
         livenessProbe: #Check if the pod is alive
           httpGet: #Every 10 seconds, Kubernetes calls GET http://pod-ip:5000/health
             path: /health
             port: 5000
-          initialDelaySeconds: 10
-          periodSeconds: 10
+          initialDelaySeconds: 15
+          periodSeconds: 15 # Check every 15 seconds
+          timeoutSeconds: 5 # Wait up to 5 seconds for response
+          failureThreshold: 5 # Kill after 5 failures (75 seconds)
         readinessProbe:
           httpGet:
             path: /health

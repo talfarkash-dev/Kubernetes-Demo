@@ -15,6 +15,6 @@ spec:
     app: flask-app  # Matches pods with this label
   ports:
   - protocol: TCP
-    port: 80        # Service port
+    port: 5000        # Service port (matches Flask app)
     targetPort: 5000  # Container port (Flask)
-    nodePort: 30080   # External access port
+    nodePort: 30500   # External access port
