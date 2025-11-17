@@ -1,0 +1,39 @@
+# ==============================================================================
+# Frontend Deployment
+# ==============================================================================
+# Deploys the React frontend application
+# Single replica is sufficient for demo purposes
+# ==============================================================================
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-deployment
+  labels:
+    app: frontend
+spec:
+  replicas: 1  # Only need one frontend pod
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+      - name: frontend
+        image: k8s-demo-frontend:latest
+        imagePullPolicy: Never  # Use local image (for Minikube)
+        ports:
+        - containerPort: 80
+        env:
+        - name: REACT_APP_BACKEND_URL
+          value: "http://flask-app-service"  # Service name for backend
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "250m"
+          requests:
+            memory: "64Mi"
+            cpu: "100m"

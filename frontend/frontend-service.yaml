@@ -1,0 +1,20 @@
+
+# ==============================================================================
+# Frontend Service
+# ==============================================================================
+# Exposes the frontend to external access via NodePort
+# ==============================================================================
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-service
+spec:
+  type: NodePort  # Expose to external traffic
+  selector:
+    app: frontend  # Matches frontend pods
+  ports:
+  - protocol: TCP
+    port: 80        # Service port
+    targetPort: 80  # Container port (nginx)
+    nodePort: 30081 # External access port

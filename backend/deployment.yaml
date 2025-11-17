@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flask-app-deployment
+  labels:
+    app: flask-app
+spec:
+  replicas: 3  # How many copies
+  selector:
+    matchLabels:
+      app: flask-app  # Which pods belong to this deployment
+  template:
+    metadata:
+      labels:
+        app: flask-app  # Label for the pods
+    spec:
+      containers:
+      - name: flask-app
+        image: flask-k8s-app:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 5000
+        env:
+        - name: APP_VERSION
+          value: "1.0"
+        resources: #Maximum the pod can use
+          limits:
+            memory: "128Mi"
+            cpu: "250m"
+          requests: #What the pod needs to start
+            memory: "64Mi"
+            cpu: "100m"
+        livenessProbe: #Check if the pod is alive
+          httpGet: #Every 10 seconds, Kubernetes calls GET http://pod-ip:5000/health
+            path: /health
+            port: 5000
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          ## Liveness vs Readiness - Real Example
+
+# Imagine your app needs 30 seconds to connect to a database:
+# ```
+# Time 0s:  Pod starts
+# Time 5s:  ReadinessProbe fails (still connecting) → No traffic sent
+# Time 10s: ReadinessProbe fails (still connecting) → No traffic sent
+# Time 30s: Database connected!
+# Time 35s: ReadinessProbe succeeds → Traffic starts flowing
+
+# Meanwhile, LivenessProbe checks if app is completely dead:
+# Time 10s: LivenessProbe succeeds (app is running, just not ready)
+# Time 20s: LivenessProbe succeeds
+# ...
+# ```
+
+# If app crashes:
+# ```
+# Time 60s: LivenessProbe fails → Kubernetes restarts pod

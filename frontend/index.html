@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#667eea">
+    <meta name="description" content="Kubernetes Demo - Load Balancing & Auto-Scaling">
+    <title>Kubernetes Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding-bottom: 2rem;
+        }
+
+        .header {
+            background-color: rgba(255, 255, 255, 0.95);
+            padding: 2rem;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            color: #667eea;
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .card h2 {
+            color: #333;
+            margin-bottom: 1.5rem;
+            font-size: 1.5rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 2rem;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 3rem;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .button-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .btn {
+            padding: 1rem 2rem;
+            font-size: 1rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-warning {
+            background: #f59e0b;
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+        }
+
+        .info-box {
+            background: #f3f4f6;
+            border-left: 4px solid #667eea;
+            padding: 1.5rem;
+            border-radius: 8px;
+        }
+
+        .info-box h3 {
+            color: #333;
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+        }
+
+        .info-box ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .info-box li {
+            padding: 0.5rem 0;
+            color: #555;
+        }
+
+        .info-box strong {
+            color: #667eea;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #999;
+            font-size: 1.1rem;
+        }
+
+        .response-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .response-card {
+            background: #f9fafb;
+            border-radius: 8px;
+            padding: 1rem;
+            border-left: 4px solid #667eea;
+            transition: all 0.2s ease;
+        }
+
+        .response-card:hover {
+            background: #f3f4f6;
+            transform: translateX(4px);
+        }
+
+        .response-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .response-time {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .response-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .badge-primary {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .badge-warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .response-body {
+            color: #333;
+            font-size: 0.95rem;
+        }
+
+        .duration {
+            color: #f59e0b;
+            font-weight: 600;
+        }
+
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .loading-overlay.active {
+            display: flex;
+        }
+
+        .loading-overlay p {
+            color: white;
+            font-size: 1.2rem;
+            margin-top: 1rem;
+        }
+
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.8rem;
+            }
+
+            .button-group {
+                flex-direction: column;
+            }
+
+            .btn {
+                min-width: 100%;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚀 Kubernetes Demo</h1>
+        <p>Demonstrating Service Load Balancing & Auto-Scaling</p>
+    </div>
+
+    <div class="container">
+        <!-- Statistics Card -->
+        <div class="card">
+            <h2>📊 Statistics</h2>
+            <div class="stats-grid">
+                <div class="stat">
+                    <div class="stat-value" id="total-requests">0</div>
+                    <div class="stat-label">Total Requests</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="unique-pods">0</div>
+                    <div class="stat-label">Unique Pods</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls Card -->
+        <div class="card">
+            <h2>🎮 Demo Controls</h2>
+            <div class="button-group">
+                <button class="btn btn-primary" onclick="make_simple_request()">
+                    📡 Simple Request
+                </button>
+                <button class="btn btn-warning" onclick="trigger_cpu_load()">
+                    🔥 Trigger CPU Load (10x)
+                </button>
+                <button class="btn btn-secondary" onclick="clear_responses()">
+                    🗑️ Clear Results
+                </button>
+            </div>
+
+            <div class="info-box">
+                <h3>💡 What to observe:</h3>
+                <ul>
+                    <li><strong>Load Balancing:</strong> Click "Simple Request" multiple times - notice different pod hostnames</li>
+                    <li><strong>Auto-Scaling:</strong> Click "Trigger CPU Load" - watch pods increase in terminal</li>
+                    <li><strong>Service Discovery:</strong> All requests go through one service URL</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Responses Card -->
+        <div class="card">
+            <h2>📋 Response History</h2>
+            <div id="responses-container">
+                <div class="empty-state">
+                    No requests yet. Click a button above to start!
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loading-overlay">
+        <div class="spinner"></div>
+        <p>Processing requests...</p>
+    </div>
+
+    <script>
+        // Configuration - Backend on localhost:8080
+        const BACKEND_URL = 'http://localhost:8080';
+
+        // State
+        let responses = [];
+        let total_requests = 0;
+        let unique_pods = new Set();
+
+        // Show/hide loading overlay
+        function set_loading(is_loading) {
+            const overlay = document.getElementById('loading-overlay');
+            if (is_loading) {
+                overlay.classList.add('active');
+            } else {
+                overlay.classList.remove('active');
+            }
+        }
+
+        // Update statistics display
+        function update_stats() {
+            document.getElementById('total-requests').textContent = total_requests;
+            document.getElementById('unique-pods').textContent = unique_pods.size;
+        }
+
+        // Make HTTP request to backend
+        async function make_request(endpoint) {
+            try {
+                const response = await fetch(`${BACKEND_URL}${endpoint}`);
+                const data = await response.json();
+
+                // Add response to list
+                const new_response = {
+                    ...data,
+                    timestamp: new Date().toLocaleTimeString(),
+                    endpoint: endpoint
+                };
+
+                responses.unshift(new_response);
+                if (responses.length > 20) {
+                    responses = responses.slice(0, 20);
+                }
+
+                // Update stats
+                total_requests++;
+                if (data.hostname) {
+                    unique_pods.add(data.hostname);
+                }
+
+                update_stats();
+                render_responses();
+
+                return data;
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error connecting to backend at ' + BACKEND_URL + '\n\nMake sure start-demo.ps1 is running!');
+                throw error;
+            }
+        }
+
+        // Simple request handler
+        async function make_simple_request() {
+            set_loading(true);
+            try {
+                await make_request('/info');
+            } finally {
+                set_loading(false);
+            }
+        }
+
+        // CPU load request handler
+        async function trigger_cpu_load() {
+            set_loading(true);
+            try {
+                const requests = [];
+                for (let i = 0; i < 10; i++) {
+                    requests.push(make_request('/cpu-load'));
+                }
+                await Promise.all(requests);
+            } finally {
+                set_loading(false);
+            }
+        }
+
+        // Clear all responses
+        function clear_responses() {
+            responses = [];
+            total_requests = 0;
+            unique_pods = new Set();
+            update_stats();
+            render_responses();
+        }
+
+        // Render responses list
+        function render_responses() {
+            const container = document.getElementById('responses-container');
+
+            if (responses.length === 0) {
+                container.innerHTML = '<div class="empty-state">No requests yet. Click a button above to start!</div>';
+                return;
+            }
+
+            const html = '<div class="response-list">' +
+                responses.map(resp => {
+                    const is_cpu_load = resp.endpoint.includes('cpu');
+                    const badge_class = is_cpu_load ? 'badge-warning' : 'badge-primary';
+                    const duration_html = resp.duration_seconds
+                        ? `<span class="duration"> | Duration: ${resp.duration_seconds}s</span>`
+                        : '';
+
+                    return `
+                        <div class="response-card">
+                            <div class="response-header">
+                                <span class="response-time">${resp.timestamp}</span>
+                                <span class="response-badge ${badge_class}">
+                                    ${resp.endpoint}
+                                </span>
+                            </div>
+                            <div class="response-body">
+                                <strong>Pod:</strong> ${resp.hostname}
+                                ${duration_html}
+                            </div>
+                        </div>
+                    `;
+                }).join('') +
+                '</div>';
+
+            container.innerHTML = html;
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('Kubernetes Demo Frontend Loaded');
+            console.log('Backend URL:', BACKEND_URL);
+        });
+    </script>
+</body>
+</html>

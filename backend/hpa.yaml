@@ -1,0 +1,91 @@
+# ==============================================================================
+# Horizontal Pod Autoscaler (HPA)
+# ==============================================================================
+# What: Automatically scales the number of pods based on CPU/memory usage
+# Why: Handles traffic spikes without manual intervention
+# How: Monitors metrics and adjusts replicas between min and max
+#
+# Use Cases:
+# - Traffic varies throughout the day (busy hours vs quiet hours)
+# - Unpredictable load spikes (viral content, sales events)
+# - Cost optimization (scale down when not needed)
+#
+# Requirements:
+# - metrics-server must be enabled: minikube addons enable metrics-server
+# - Pods must have resource requests defined in deployment.yaml
+# ==============================================================================
+
+apiVersion: autoscaling/v2  # API version for autoscaling
+kind: HorizontalPodAutoscaler  # Type of Kubernetes resource
+metadata:
+  name: flask-app-hpa  # Name of this HPA (can be anything)
+spec:
+  # ===========================================================================
+  # TARGET DEPLOYMENT
+  # Which deployment should this HPA control?
+  # ===========================================================================
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: flask-app-deployment  # Must match your deployment name
+
+  # ===========================================================================
+  # REPLICA LIMITS
+  # Set boundaries for scaling
+  # ===========================================================================
+  minReplicas: 2   # Never scale below this (always keep 2 pods minimum)
+  maxReplicas: 10  # Never scale above this (cost/resource limit)
+
+  # ===========================================================================
+  # METRICS TO MONITOR
+  # HPA scales based on these thresholds
+  # ===========================================================================
+  metrics:
+  # CPU Metric
+  - type: Resource  # Built-in resource type (cpu or memory)
+    resource:
+      name: cpu  # Monitor CPU usage
+      target:
+        type: Utilization  # Use percentage of requested resources
+        averageUtilization: 70  # Target: 70% CPU across all pods
+        # If average CPU > 70% → Scale up
+        # If average CPU < 70% → Scale down (slowly)
+
+  # Memory Metric
+  - type: Resource
+    resource:
+      name: memory  # Monitor memory usage
+      target:
+        type: Utilization
+        averageUtilization: 80  # Target: 80% memory across all pods
+        # If average memory > 80% → Scale up
+
+  # ===========================================================================
+  # SCALING BEHAVIOR (Optional but recommended)
+  # Control how fast/slow to scale up or down
+  # ===========================================================================
+  behavior:
+    # Scale Down Behavior
+    scaleDown:
+      stabilizationWindowSeconds: 60  # Wait 60 seconds before scaling down
+      # Prevents flapping (up/down/up/down) during fluctuating load
+      policies:
+      - type: Percent  # Scale down by percentage
+        value: 50  # Remove max 50% of current pods at once
+        periodSeconds: 60  # Within 60 second window
+        # Example: If you have 10 pods, remove max 5 pods per minute
+
+    # Scale Up Behavior
+    scaleUp:
+      stabilizationWindowSeconds: 0  # Scale up immediately (no delay)
+      # Fast response to traffic spikes is important
+      policies:
+      - type: Percent
+        value: 100  # Can double the number of pods at once
+        periodSeconds: 30  # Within 30 second window
+        # Example: 2 pods → can become 4 pods immediately
+      - type: Pods
+        value: 2  # Or add 2 pods at once
+        periodSeconds: 30
+      selectPolicy: Max  # Use whichever policy adds more pods
+      # Chooses between doubling or adding 2, whichever is more aggressive
