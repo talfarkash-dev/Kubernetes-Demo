@@ -43,7 +43,7 @@ def cpu_load():
 def info():
     """Get pod information"""
     result = 0
-    for i in range(10000):
+    for i in range(1000):
         result += i * i
     return jsonify({
         'hostname': socket.gethostname(),

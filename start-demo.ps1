@@ -1,115 +1,113 @@
-﻿# Set UTF-8 encoding
+﻿# =============================================================================
+# Kubernetes Demo - Quick Start
+# Run this daily to start your demo
+# First time? Run setup.ps1 first!
+# =============================================================================
+
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
-# Kubernetes Demo - One-Click Launcher
+$header = @'
 
-Write-Host ""
-Write-Host "==================================================" -ForegroundColor Cyan
-Write-Host "   Kubernetes Demo Launcher" -ForegroundColor Cyan
-Write-Host "==================================================" -ForegroundColor Cyan
-Write-Host ""
+==================================================
+   Kubernetes Demo - Quick Start
+==================================================
 
-# Check if Minikube is running
-Write-Host "[1/7] Checking Minikube status..." -ForegroundColor Yellow
+'@
+Write-Host $header -ForegroundColor Cyan
+
+# =============================================================================
+# Step 1: Check Minikube
+# =============================================================================
+Write-Host "[1/6] Checking Minikube..." -ForegroundColor Yellow
+
 $status = minikube status 2>&1 | Out-String
 
 if ($status -notmatch "Running") {
-    Write-Host "      Minikube is not running. Starting..." -ForegroundColor Yellow
-    minikube start --driver=docker
+    $error_msg = @'
 
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host ""
-        Write-Host "ERROR: Minikube failed to start!" -ForegroundColor Red
-        Write-Host "Try running: minikube delete" -ForegroundColor Yellow
-        Write-Host "Then run this script again" -ForegroundColor Yellow
-        exit 1
-    }
+ERROR: Minikube is not running!
 
-    Write-Host "      Waiting for Kubernetes API..." -ForegroundColor Yellow
-    Start-Sleep -Seconds 10
+First time setup? Run: .\setup.ps1
+Just stopped? Run: minikube start
 
-    Write-Host "      Enabling metrics-server (for auto-scaling)..." -ForegroundColor Yellow
-    minikube addons enable metrics-server 2>&1 | Out-Null
-} else {
-    Write-Host "      Minikube is running" -ForegroundColor Green
+'@
+    Write-Host $error_msg -ForegroundColor Red
+    exit 1
 }
 
-# Configure Docker environment
-Write-Host ""
-Write-Host "[2/7] Configuring Docker environment..." -ForegroundColor Yellow
-& minikube -p minikube docker-env --shell powershell | Invoke-Expression
-Write-Host "      Docker environment configured" -ForegroundColor Green
+Write-Host "      Minikube is running" -ForegroundColor Green
 
-# Check and build images
+# =============================================================================
+# Step 2: Configure Docker
+# =============================================================================
 Write-Host ""
-Write-Host "[3/7] Checking Docker images..." -ForegroundColor Yellow
+Write-Host "[2/6] Configuring Docker..." -ForegroundColor Yellow
+
+& minikube -p minikube docker-env --shell powershell | Invoke-Expression
+Write-Host "      Docker configured" -ForegroundColor Green
+
+# =============================================================================
+# Step 3: Check images (rebuild if missing)
+# =============================================================================
+Write-Host ""
+Write-Host "[3/6] Checking images..." -ForegroundColor Yellow
+
 $backend_image = docker images flask-k8s-app:latest -q
 $frontend_image = docker images k8s-demo-frontend:latest -q
 
+$rebuild_needed = $false
+
 if (-not $backend_image) {
-    Write-Host "      Building backend image..." -ForegroundColor Yellow
+    Write-Host "      Backend image missing, rebuilding..." -ForegroundColor Yellow
     Push-Location backend
     docker build -t flask-k8s-app:latest . 2>&1 | Out-Null
     Pop-Location
-
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "ERROR: Backend build failed!" -ForegroundColor Red
-        exit 1
-    }
-    Write-Host "      Backend image built" -ForegroundColor Green
-} else {
-    Write-Host "      Backend image exists" -ForegroundColor Green
+    $rebuild_needed = $true
 }
 
 if (-not $frontend_image) {
-    Write-Host "      Building frontend image..." -ForegroundColor Yellow
+    Write-Host "      Frontend image missing, rebuilding..." -ForegroundColor Yellow
     Push-Location frontend
     docker build -t k8s-demo-frontend:latest . 2>&1 | Out-Null
     Pop-Location
-
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "ERROR: Frontend build failed!" -ForegroundColor Red
-        exit 1
-    }
-    Write-Host "      Frontend image built" -ForegroundColor Green
-} else {
-    Write-Host "      Frontend image exists" -ForegroundColor Green
+    $rebuild_needed = $true
 }
 
-# Deploy to Kubernetes
+if ($rebuild_needed) {
+    Write-Host "      Images rebuilt" -ForegroundColor Green
+} else {
+    Write-Host "      Images ready" -ForegroundColor Green
+}
+
+# =============================================================================
+# Step 4: Deploy to Kubernetes
+# =============================================================================
 Write-Host ""
-Write-Host "[4/7] Deploying to Kubernetes..." -ForegroundColor Yellow
+Write-Host "[4/6] Deploying..." -ForegroundColor Yellow
 
 kubectl apply -f backend/deployment.yaml 2>&1 | Out-Null
 kubectl apply -f backend/service.yaml 2>&1 | Out-Null
-
-# Only apply HPA if metrics-server is available
-$metrics_server_ready = kubectl get deployment metrics-server -n kube-system 2>&1 | Out-String
-if ($metrics_server_ready -match "metrics-server") {
-    kubectl apply -f backend/hpa.yaml 2>&1 | Out-Null
-    Write-Host "      Auto-scaling enabled" -ForegroundColor Green
-} else {
-    Write-Host "      Skipping auto-scaling (metrics-server not available)" -ForegroundColor Yellow
-}
-
+kubectl apply -f backend/hpa.yaml 2>&1 | Out-Null
 kubectl apply -f frontend/frontend-deployment.yaml 2>&1 | Out-Null
 kubectl apply -f frontend/frontend-service.yaml 2>&1 | Out-Null
 
-Write-Host "      Deployments created" -ForegroundColor Green
+Write-Host "      Deployed" -ForegroundColor Green
 
-# Wait for pods to be ready
+# =============================================================================
+# Step 5: Wait for pods
+# =============================================================================
 Write-Host ""
-Write-Host "[5/7] Waiting for pods to start..." -ForegroundColor Yellow
-Write-Host "      This may take 30-60 seconds..." -ForegroundColor Gray
+Write-Host "[5/6] Waiting for pods..." -ForegroundColor Yellow
 
 $max_wait = 60
 $waited = 0
+
 while ($waited -lt $max_wait) {
     $backend_ready = kubectl get pods -l app=flask-app -o jsonpath='{.items[*].status.containerStatuses[0].ready}' 2>&1
     $frontend_ready = kubectl get pods -l app=frontend -o jsonpath='{.items[*].status.containerStatuses[0].ready}' 2>&1
 
     if ($backend_ready -match "true" -and $frontend_ready -match "true") {
-        Write-Host "      Pods are ready!" -ForegroundColor Green
+        Write-Host "      Pods ready" -ForegroundColor Green
         break
     }
 
@@ -118,57 +116,69 @@ while ($waited -lt $max_wait) {
     Write-Host "      Still waiting... ($waited/$max_wait seconds)" -ForegroundColor Gray
 }
 
-# Show pod status
 Write-Host ""
 kubectl get pods
-Write-Host ""
 
-# Stop any existing port-forwards
-Write-Host "[6/7] Setting up port forwarding..." -ForegroundColor Yellow
+# =============================================================================
+# Step 6: Start service tunnels in separate windows
+# =============================================================================
+Write-Host ""
+Write-Host "[6/6] Starting service tunnels..." -ForegroundColor Yellow
+
+# Stop any existing tunnels
 Get-Process | Where-Object {$_.ProcessName -eq "kubectl"} | Stop-Process -Force -ErrorAction SilentlyContinue
 Start-Sleep -Seconds 2
 
-# Start port forwarding in background
-Start-Process -WindowStyle Hidden powershell -ArgumentList "-Command", "kubectl port-forward service/flask-app-service 8080:5000"
-Start-Process -WindowStyle Hidden powershell -ArgumentList "-Command", "kubectl port-forward service/frontend-service 8081:80"
+# Start backend tunnel in new window
+Write-Host "      Starting backend tunnel..." -ForegroundColor Gray
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "Write-Host 'Backend Tunnel - Keep this window open!' -ForegroundColor Cyan; Write-Host ''; minikube service flask-app-service"
 
-Write-Host "      Waiting for port forwarding to initialize..." -ForegroundColor Gray
+Start-Sleep -Seconds 3
+
+# Start frontend tunnel in new window
+Write-Host "      Starting frontend tunnel..." -ForegroundColor Gray
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "Write-Host 'Frontend Tunnel - Keep this window open!' -ForegroundColor Cyan; Write-Host ''; minikube service frontend-service"
+
 Start-Sleep -Seconds 5
 
-# Test backend connectivity
+# Get URLs
 Write-Host ""
-Write-Host "[7/7] Testing backend connectivity..." -ForegroundColor Yellow
-try {
-    $test_response = Invoke-WebRequest -Uri "http://localhost:8080/health" -TimeoutSec 5 -ErrorAction Stop
-    Write-Host "      Backend is responding!" -ForegroundColor Green
-} catch {
-    Write-Host "      WARNING: Backend not responding yet" -ForegroundColor Yellow
-    Write-Host "      Give it a few more seconds..." -ForegroundColor Yellow
-}
+Write-Host "      Getting service URLs..." -ForegroundColor Gray
+$backend_url = minikube service flask-app-service --url 2>&1 | Select-String -Pattern "http://" | ForEach-Object { $_.Line }
+$frontend_url = minikube service frontend-service --url 2>&1 | Select-String -Pattern "http://" | ForEach-Object { $_.Line }
 
-# Success message
-Write-Host ""
-Write-Host "==================================================" -ForegroundColor Green
-Write-Host "   Demo is Ready!" -ForegroundColor Green
-Write-Host "==================================================" -ForegroundColor Green
-Write-Host ""
-Write-Host "Frontend:  http://localhost:8081" -ForegroundColor Cyan
-Write-Host "Backend:   http://localhost:8080" -ForegroundColor Cyan
-Write-Host ""
-Write-Host "Opening browser in 3 seconds..." -ForegroundColor Yellow
-Start-Sleep -Seconds 3
-Start-Process "http://localhost:8081"
+Write-Host "      Tunnels started" -ForegroundColor Green
+
+# =============================================================================
+# Success
+# =============================================================================
+$success_msg = @"
+
+==================================================
+   Demo Ready!
+==================================================
+
+Frontend:  $frontend_url
+Backend:   $backend_url
+
+Two tunnel windows opened - KEEP THEM OPEN during demo!
+
+Useful commands:
+  kubectl get pods -w         # Watch pods
+  kubectl get hpa -w          # Watch auto-scaling
+  kubectl top pods            # Check CPU usage
+  .\check-metrics.ps1         # Verify metrics
+  .\stop-demo.ps1             # Stop demo
+
+"@
+
+Write-Host $success_msg -ForegroundColor Green
+
+Write-Host "Opening frontend in browser..." -ForegroundColor Yellow
+Start-Sleep -Seconds 2
+Start-Process $frontend_url
 
 Write-Host ""
-Write-Host "Commands:" -ForegroundColor Yellow
-Write-Host "  - Watch pods:  kubectl get pods -w" -ForegroundColor Gray
-Write-Host "  - View logs:   kubectl logs -l app=flask-app --tail=50" -ForegroundColor Gray
-Write-Host "  - Stop demo:   .\stop-demo.ps1" -ForegroundColor Gray
+Write-Host "IMPORTANT: Keep the two tunnel windows open!" -ForegroundColor Red
+Write-Host "Close them to stop, or run: .\stop-demo.ps1" -ForegroundColor Yellow
 Write-Host ""
-Write-Host "Press Ctrl+C to stop port forwarding" -ForegroundColor Red
-Write-Host ""
-
-# Keep script running to maintain port forwarding
-while ($true) {
-    Start-Sleep -Seconds 10
-}

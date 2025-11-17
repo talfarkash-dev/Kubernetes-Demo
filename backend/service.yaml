@@ -10,7 +10,7 @@ kind: Service
 metadata:
   name: flask-app-service
 spec:
-  type: ClusterIP  # Internal service (accessed via port-forward)
+  type: NodePort    # Allows minikube service to expose it
   sessionAffinity: None  # Ensures round-robin load balancing
   selector:
     app: flask-app  # Matches pods with this label
@@ -18,3 +18,4 @@ spec:
   - protocol: TCP
     port: 5000        # Service port (matches Flask app)
     targetPort: 5000  # Container port (Flask)
+    nodePort: 30500  # Minikube node port for external access
