@@ -129,7 +129,20 @@ Write-Host "[6/6] Starting service tunnels..." -ForegroundColor Yellow
 Get-Process | Where-Object {$_.ProcessName -eq "kubectl"} | Stop-Process -Force -ErrorAction SilentlyContinue
 Start-Sleep -Seconds 2
 
+# Get URLs first (before starting tunnels)
+Write-Host "      Getting service URLs..." -ForegroundColor Gray
+$backend_info = kubectl get service flask-app-service -o jsonpath='{.spec.ports[0].nodePort}'
+$frontend_info = kubectl get service frontend-service -o jsonpath='{.spec.ports[0].nodePort}'
+$minikube_ip = minikube ip
+
+$backend_url = "http://${minikube_ip}:${backend_info}"
+$frontend_url = "http://${minikube_ip}:${frontend_info}"
+
+Write-Host "      Backend:  $backend_url" -ForegroundColor Cyan
+Write-Host "      Frontend: $frontend_url" -ForegroundColor Cyan
+
 # Start backend tunnel in new window
+Write-Host ""
 Write-Host "      Starting backend tunnel..." -ForegroundColor Gray
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "Write-Host 'Backend Tunnel - Keep this window open!' -ForegroundColor Cyan; Write-Host ''; minikube service flask-app-service"
 
@@ -139,14 +152,7 @@ Start-Sleep -Seconds 3
 Write-Host "      Starting frontend tunnel..." -ForegroundColor Gray
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "Write-Host 'Frontend Tunnel - Keep this window open!' -ForegroundColor Cyan; Write-Host ''; minikube service frontend-service"
 
-Start-Sleep -Seconds 5
-
-# Get URLs
-Write-Host ""
-Write-Host "      Getting service URLs..." -ForegroundColor Gray
-$backend_url = minikube service flask-app-service --url 2>&1 | Select-String -Pattern "http://" | ForEach-Object { $_.Line }
-$frontend_url = minikube service frontend-service --url 2>&1 | Select-String -Pattern "http://" | ForEach-Object { $_.Line }
-
+Start-Sleep -Seconds 3
 Write-Host "      Tunnels started" -ForegroundColor Green
 
 # =============================================================================
@@ -158,10 +164,13 @@ $success_msg = @"
    Demo Ready!
 ==================================================
 
-Frontend:  $frontend_url
-Backend:   $backend_url
+Backend:   $backend_url (via tunnel)
+Frontend:  $frontend_url (via tunnel)
 
 Two tunnel windows opened - KEEP THEM OPEN during demo!
+
+The tunnel windows show localhost URLs (http://127.0.0.1:xxxxx)
+Use those URLs in your browser!
 
 Useful commands:
   kubectl get pods -w         # Watch pods
@@ -174,10 +183,8 @@ Useful commands:
 
 Write-Host $success_msg -ForegroundColor Green
 
-Write-Host "Opening frontend in browser..." -ForegroundColor Yellow
-Start-Sleep -Seconds 2
-Start-Process $frontend_url
-
+Write-Host "Look at the Frontend Tunnel window for the localhost URL" -ForegroundColor Yellow
+Write-Host "Open that URL in your browser to access the demo" -ForegroundColor Yellow
 Write-Host ""
 Write-Host "IMPORTANT: Keep the two tunnel windows open!" -ForegroundColor Red
 Write-Host "Close them to stop, or run: .\stop-demo.ps1" -ForegroundColor Yellow
